@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Рюриковичи | Семейное дерево</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<!-- Маркдаун парсер -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg-page: #f8f6f1;
+    --bg-card: #ffffff;
+    --border-card: #d6d0c4;
+    --text-primary: #1a1510;
+    --text-secondary: #4a4035;
+    --text-muted: #7a6e60;
+    --accent-hover: #e5e0d6;
+    --line-color: #9ca3af;
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.15);
+    --radius: 12px;
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, sans-serif;
+    line-height: 1.5;
+    overflow-x: auto;
+    min-height: 100vh;
+  }
+
+  .page-wrapper {
+    min-width: max-content;
+    width: 100%;
+    padding: 0 40px;
+  }
+
+  header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    border-bottom: 2px solid var(--border-card);
+    background: linear-gradient(to bottom, var(--bg-page), transparent);
+    width: 100%;
+  }
+
+  header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  header p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 24px;
+    padding: 20px 20px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 2px solid;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .tree-container {
+    position: relative;
+    padding: 40px 0 80px;
+    transform-origin: top left;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  #svg-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .tree {
+    display: flex;
+    align-items: flex-start;
+    position: relative;
+    z-index: 2;
+  }
+
+  .node-group {
+    display: flex;
+    align-items: flex-start;
+    margin: 8px 0;
+  }
+
+  .children-container {
+    display: flex;
+    flex-direction: column;
+    margin-left: 50px;
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.3s ease, transform 0.3s ease, margin-left 0.3s ease;
+  }
+
+  .children-container.collapsed {
+    display: none;
+  }
+
+  .children-container.fading-in {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  .node {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-left: 6px solid;
+    border-radius: var(--radius);
+    min-width: 240px;
+    max-width: 300px;
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition);
+    cursor: default;
+    margin: 4px 0;
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  .node:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-3px);
+  }
+
+  .node.founder { border-left-color: #d97706; background: linear-gradient(to right, #fef3c7 10%, var(--bg-card) 20%); }
+  .node.founder:hover { border-color: #d97706; }
+  .node.grand-prince { border-left-color: #2563eb; background: linear-gradient(to right, #dbeafe 10%, var(--bg-card) 20%); }
+  .node.grand-prince:hover { border-color: #2563eb; }
+  .node.moscow { border-left-color: #7e22ce; background: linear-gradient(to right, #f3e8ff 10%, var(--bg-card) 20%); }
+  .node.moscow:hover { border-color: #7e22ce; }
+  .node.tsar { border-left-color: #d97706; background: linear-gradient(to right, #fef3c7 10%, var(--bg-card) 20%); }
+  .node.tsar:hover { border-color: #d97706; }
+  .node.end-line { border-left-color: #dc2626; background: linear-gradient(to right, #fee2e2 10%, var(--bg-card) 20%); }
+  .node.end-line:hover { border-color: #dc2626; }
+
+  .node-content { padding: 14px 16px 14px 16px; flex: 1; cursor: pointer; }
+
+  .node-number {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 2px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 6px;
+    background: rgba(0,0,0,0.05);
+  }
+
+  .node-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.25;
+  }
+
+  .node-nickname {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-style: italic;
+    color: #666;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .node-reign {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(0,0,0,0.06);
+    padding: 3px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    font-weight: 500;
+  }
+
+  .node-fate {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    line-height: 1.4;
+    border-top: 1px dashed var(--border-card);
+    padding-top: 8px;
+    font-weight: 400;
+  }
+
+  .toggle-btn {
+    width: 36px;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #faf8f3;
+    border-left: 1px solid var(--border-card);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    cursor: pointer;
+    font-size: 1.4rem;
+    color: #888;
+    transition: all var(--transition);
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .toggle-btn:hover { color: var(--text-primary); background: #f0ece4; }
+  .toggle-btn:active { transform: scale(0.95); }
+
+  path.curve-line {
+    fill: none;
+    stroke: var(--line-color);
+    stroke-width: 2;
+    stroke-linecap: round;
+    opacity: 0.6;
+  }
+
+  .fade-in { animation: slideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-15px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .zoom-panel {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    padding: 6px 12px;
+    border-radius: 14px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-card);
+    z-index: 100;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .zoom-btn {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; border-radius: 10px; cursor: pointer;
+    font-size: 1.3rem; color: var(--text-secondary); transition: all 0.2s;
+  }
+  .zoom-btn:hover { background: var(--accent-hover); color: var(--text-primary); }
+  .zoom-btn:active { transform: scale(0.95); }
+  
+  .zoom-level {
+    min-width: 48px; text-align: center; font-weight: 500; font-size: 0.85rem;
+    color: var(--text-primary); background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 8px; user-select: none;
+  }
+
+  /* ===== MODAL ===== */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .modal.active { pointer-events: auto; opacity: 1; }
+
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 21, 16, 0.4);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-content {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    overflow: hidden;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.25s ease;
+    z-index: 2;
+  }
+  .modal.active .modal-content { transform: scale(1) translateY(0); }
+
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(0,0,0,0.05);
+    border-radius: 50%;
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: background 0.2s;
+  }
+  .modal-close:hover { background: rgba(0,0,0,0.1); color: var(--text-primary); }
+
+  .modal-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 24px;
+    overflow-y: auto;
+    max-height: 80vh;
+  }
+
+  .modal-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f1ea;
+    border-radius: 10px;
+    min-height: 300px;
+    overflow: hidden;
+  }
+  .modal-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  .modal-image-placeholder {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .modal-info h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  .modal-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .modal-meta span {
+    background: rgba(0,0,0,0.04);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .modal-text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+  .modal-text h3 {
+    font-size: 1.1rem;
+    margin: 16px 0 8px;
+    color: var(--text-secondary);
+    border-bottom: 1px dashed var(--border-card);
+    padding-bottom: 4px;
+  }
+  .modal-text ul { padding-left: 20px; margin: 8px 0; }
+  .modal-text p { margin: 8px 0; }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 2.2rem; }
+    .page-wrapper { padding: 0 20px; }
+    .node { min-width: 210px; max-width: 260px; }
+    .modal-body { grid-template-columns: 1fr; }
+    .modal-image { min-height: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <header>
+    <h1>Семейное дерево Рюриковичей</h1>
+    <p>Правящая династия Руси и России · 862–1598</p>
+  </header>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="border-color: #d97706; background: #fef3c7;"></div> Основатель / Царь</div>
+    <div class="legend-item"><div class="legend-dot" style="border-color: #2563eb; background: #dbeafe;"></div> Великий князь</div>
+    <div class="legend-item"><div class="legend-dot" style="border-color: #7e22ce; background: #f3e8ff;"></div> Московские князья</div>
+    <div class="legend-item"><div class="legend-dot" style="border-color: #dc2626; background: #fee2e2;"></div> Конец династии</div>
+  </div>
+
+  <div class="tree-container">
+    <svg id="svg-lines"></svg>
+    <div class="tree" id="tree-root"></div>
+  </div>
+</div>
+
+<div class="zoom-panel">
+  <button class="zoom-btn" id="zoom-out" title="Отдалить">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+  </button>
+  <span class="zoom-level" id="zoom-level">100%</span>
+  <button class="zoom-btn" id="zoom-in" title="Приблизить">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+  </button>
+  <button class="zoom-btn" id="zoom-reset" title="Сбросить">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+  </button>
+</div>
+
+<!-- MODAL -->
+<div id="ruler-modal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <button class="modal-close">&times;</button>
+    <div class="modal-body">
+      <div class="modal-image">
+        <img id="modal-img" src="" alt="Портрет правителя">
+        <div class="modal-image-placeholder">📷 Фото пока не добавлено<br><small>Положите 1.jpg в папку правителя</small></div>
+      </div>
+      <div class="modal-info">
+        <h2 id="modal-title">Загрузка...</h2>
+        <div class="modal-meta" id="modal-meta"></div>
+        <div class="modal-text" id="modal-text"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const treeData = {
+  name: "Рюрик", nickname: "Основатель династии", reign: "862–879", number: 1, type: "founder", folderName: "Rurik",
+  children: [
+    { name: "Олег", nickname: "Вещий", reign: "879–912", number: 2, type: "grand-prince", folderName: "Oleg", children: [] },
+    {
+      name: "Игорь", nickname: "", reign: "912–945", number: 3, type: "grand-prince", folderName: "Igor",
+      spouse: "Ольга (св.)", spouseReign: "945–960 (регентство)",
+      children: [
+        { name: "Святослав I", nickname: "Храбрый", reign: "945–972", number: 4, type: "grand-prince", folderName: "Sviatoslav_I",
+          children: [
+            { name: "Ярополк I", nickname: "", reign: "972–978", number: 5, type: "grand-prince", folderName: "Yaropolk_I", children: [] },
+            { name: "Олег Святославич", nickname: "князь древлянский", reign: "972–977", number: null, type: "grand-prince", folderName: "Oleg_Sviatoslavich", children: [] },
+            { name: "Владимир I", nickname: "Красное Солнышко / Креститель", reign: "978–1015", number: 6, type: "grand-prince", folderName: "Vladimir_I",
+              children: [
+                { name: "Святополк I", nickname: "Окаянный", reign: "1015–1019", number: 7, type: "grand-prince", folderName: "Sviatopolk_I", children: [] },
+                { name: "Ярослав I", nickname: "Мудрый", reign: "1019–1054", number: 8, type: "grand-prince", folderName: "Yaroslav_I",
+                  children: [
+                    { name: "Изяслав I", nickname: "", reign: "1054–1078", number: 9, type: "grand-prince", folderName: "Izyaslav_I", children: [] },
+                    { name: "Святослав II", nickname: "Николаич", reign: "1073–1076", number: null, type: "grand-prince", folderName: "Sviatoslav_II", children: [] },
+                    { name: "Всеволод I", nickname: "", reign: "1078–1093", number: 10, type: "grand-prince", folderName: "Vsevolod_I",
+                      children: [
+                        { name: "Святополк II", nickname: "Изяславич", reign: "1093–1113", number: 11, type: "grand-prince", folderName: "Sviatopolk_II", children: [] },
+                        { name: "Владимир II", nickname: "Мономах", reign: "1113–1125", number: 12, type: "grand-prince", folderName: "Vladimir_II_Monomakh",
+                          children: [
+                            { name: "Мстислав I", nickname: "Великий", reign: "1125–1132", number: 13, type: "grand-prince", folderName: "Mstislav_I", children: [] },
+                            { name: "Ярополк II", nickname: "Владимирович", reign: "1132–1139", number: 14, type: "grand-prince", folderName: "Yaropolk_II", children: [] },
+                            { name: "Вячеслав", nickname: "Владимирович", reign: "1139, 1150–1151", number: null, type: "grand-prince", folderName: "Vyacheslav", children: [] },
+                            { name: "Игорь Ольгович", nickname: "", reign: "1146", number: null, type: "grand-prince", folderName: "Igor_Olgovich", children: [] },
+                            { name: "Всеволод II", nickname: "Ольгович", reign: "1139–1146", number: null, type: "grand-prince", folderName: "Vsevolod_II", children: [] },
+                            { name: "Изяслав II", nickname: "Мстиславич", reign: "1146–1154", number: null, type: "grand-prince", folderName: "Izyaslav_II", children: [] },
+                            { name: "Юрий I", nickname: "Долгорукий — основатель Москвы", reign: "1149–1157", number: 15, type: "grand-prince", folderName: "Yuri_I_Dolgorukiy",
+                              children: [
+                                { name: "Изяслав III", nickname: "Давыдович", reign: "1157–1162", number: null, type: "grand-prince", folderName: "Izyaslav_III", children: [] },
+                                { name: "Ростислав II", nickname: "Мстиславич", reign: "1159–1169", number: null, type: "grand-prince", folderName: "Rostislav_II", children: [] },
+                                { name: "Глеб", nickname: "Юрьевич", reign: "1169–1171", number: null, type: "grand-prince", folderName: "Gleb_Yurievich", children: [] },
+                                { name: "Владимир III", nickname: "Мстиславич", reign: "1171", number: null, type: "grand-prince", folderName: "Vladimir_III", children: [] },
+                                { name: "Всеволод III", nickname: "Большое Гнездо", reign: "1176–1212", number: 16, type: "grand-prince", folderName: "Vsevolod_III",
+                                  children: [
+                                    { name: "Рюрик Ростиславич", nickname: "", reign: "1194–1210", number: null, type: "grand-prince", folderName: "Rurik_Rostislavich", children: [] },
+                                    { name: "Ингварь", nickname: "Ярославич", reign: "1202–1214", number: null, type: "grand-prince", folderName: "Ingvor_Yaroslavich", children: [] },
+                                    { name: "Мстислав II", nickname: "Романович", reign: "1212–1223", number: null, type: "grand-prince", folderName: "Mstislav_II", children: [] },
+                                    { name: "Всеволод IV", nickname: "Чермный", reign: "1212–1214", number: null, type: "grand-prince", folderName: "Vsevolod_IV", children: [] },
+                                    { name: "Владимир IV", nickname: "Рюрикович", reign: "1214–1223", number: null, type: "grand-prince", folderName: "Vladimir_IV", children: [] },
+                                    { name: "Изяслав IV", nickname: "Владимирович", reign: "1235–1236", number: null, type: "grand-prince", folderName: "Izyaslav_IV", children: [] },
+                                    { name: "Ярослав II", nickname: "Всеволодович", reign: "1236–1238", number: 17, type: "grand-prince", folderName: "Yaroslav_II",
+                                      children: [
+                                        { name: "Святослав", nickname: "Всеволодович", reign: "1238–1246", number: null, type: "grand-prince", folderName: "Sviatoslav_Vsevolodovich", children: [] },
+                                        { name: "Александр I", nickname: "Невский", reign: "1252–1263", number: 18, type: "grand-prince", folderName: "Alexander_I_Nevsky",
+                                          children: [
+                                            { name: "Михаил", nickname: "Ярославич Хоробрит", reign: "1246–1248", number: null, type: "grand-prince", folderName: "Mikhail_Khorobrit", children: [] },
+                                            { name: "Ростислав", nickname: "Мстиславич", reign: "1239–1240", number: null, type: "grand-prince", folderName: "Rostislav_Mstislavich", children: [] },
+                                            { name: "Димитрий I", nickname: "Александрович", reign: "1276–1294", number: 19, type: "grand-prince", folderName: "Dmitry_I", children: [] },
+                                            { name: "Андрей III", nickname: "Городецкий", reign: "1281–1304", number: 20, type: "grand-prince", folderName: "Andrey_III", children: [] },
+                                            { name: "Даниил", nickname: "Московский", reign: "1263–1303", number: 21, type: "moscow", folderName: "Daniil_of_Moscow",
+                                              children: [
+                                                { name: "Юрий", nickname: "Данилович", reign: "1318–1322", number: 22, type: "moscow", folderName: "Yuri_Danilovich", children: [] },
+                                                { name: "Иван I", nickname: "Калита", reign: "1325–1340", number: 23, type: "moscow", folderName: "Ivan_I_Kalita",
+                                                  children: [
+                                                    { name: "Симеон", nickname: "Гордый", reign: "1340–1353", number: 24, type: "moscow", folderName: "Simeon_I", children: [] },
+                                                    { name: "Иван II", nickname: "Красный", reign: "1353–1359", number: 25, type: "moscow", folderName: "Ivan_II",
+                                                      children: [
+                                                        { name: "Димитрий III", nickname: "Донской", reign: "1359–1389", number: 26, type: "moscow", folderName: "Dmitry_III_Donskoy",
+                                                          children: [
+                                                            { name: "Василий I", nickname: "Дмитриевич", reign: "1389–1425", number: 27, type: "moscow", folderName: "Vasily_I",
+                                                              children: [
+                                                                { name: "Василий II", nickname: "Тёмный", reign: "1425–1462", number: 28, type: "moscow", folderName: "Vasily_II",
+                                                                  children: [
+                                                                    { name: "Иоанн III", nickname: "Великий", reign: "1462–1505", number: 29, type: "tsar", folderName: "Ivan_III",
+                                                                      children: [
+                                                                        { name: "Василий III", nickname: "", reign: "1505–1533", number: 30, type: "tsar", folderName: "Vasily_III",
+                                                                          children: [
+                                                                            { name: "Иоанн IV", nickname: "Грозный — первый Царь", reign: "1533–1584", number: 31, type: "tsar", folderName: "Ivan_IV",
+                                                                              children: [
+                                                                                { name: "Иван Иванович", nickname: "Старший сын — наследник", reign: "", fate: "Погиб в 1581 г.", number: null, type: "end-line", folderName: "Ivan_Ivanovich", children: [] },
+                                                                                { name: "Феодор I", nickname: "Иоаннович", reign: "1584–1598", fate: "Умер бездетным в 1598 г.", number: 32, type: "end-line", folderName: "Feodor_I", children: [] },
+                                                                                { name: "Дмитрий Иванович", nickname: "Младший сын (от Марии Нагой)", reign: "", fate: "Погиб в Угличе в 1591 г.", number: null, type: "end-line", folderName: "Dmitry_Ivanovich", children: [] }
+                                                                              ]
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                }
+                                                              ]
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+function createNodeElement(data) {
+  const group = document.createElement('div');
+  group.className = 'node-group';
+
+  const node = document.createElement('div');
+  node.className = `node ${data.type || ''}`;
+  node.dataset.folder = data.folderName || '';
+  node.dataset.hasChildren = (data.children && data.children.length > 0) ? 'true' : 'false';
+
+  const content = document.createElement('div');
+  content.className = 'node-content';
+
+  let html = '';
+  if (data.number) html += `<div class="node-number">№${data.number}</div>`;
+  html += `<div class="node-name">${data.name}</div>`;
+  if (data.nickname) html += `<div class="node-nickname">${data.nickname}</div>`;
+  if (data.reign) html += `<div class="node-reign">⏱ ${data.reign}</div>`;
+  if (data.spouse) {
+    html += `<div class="node-nickname" style="margin-top:4px; color:#666;">+ ${data.spouse}</div>`;
+    if (data.spouseReign) html += `<div class="node-reign" style="margin-top:2px;">${data.spouseReign}</div>`;
+  }
+  if (data.fate) html += `<div class="node-fate">${data.fate}</div>`;
+  content.innerHTML = html;
+
+  // Click to open modal
+  content.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openModal(node.dataset.folder, data.name);
+  });
+
+  node.appendChild(content);
+
+  if (data.children && data.children.length > 0) {
+    const btn = document.createElement('div');
+    btn.className = 'toggle-btn';
+    btn.textContent = '+';
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleChildren(this);
+    });
+    node.appendChild(btn);
+  }
+
+  group.appendChild(node);
+
+  if (data.children && data.children.length > 0) {
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'children-container collapsed';
+    data.children.forEach(child => {
+      childrenContainer.appendChild(createNodeElement(child));
+    });
+    group.appendChild(childrenContainer);
+  }
+
+  return group;
+}
+
+function toggleChildren(btn) {
+  const nodeGroup = btn.closest('.node-group');
+  const container = nodeGroup.querySelector(':scope > .children-container');
+  if (!container) return;
+  const isCollapsed = container.classList.contains('collapsed');
+  if (isCollapsed) {
+    container.classList.remove('collapsed');
+    container.classList.add('fade-in');
+    btn.textContent = '−';
+    requestAnimationFrame(() => requestAnimationFrame(drawLines));
+  } else {
+    container.classList.remove('fade-in');
+    container.classList.add('collapsed');
+    btn.textContent = '+';
+    setTimeout(drawLines, 50);
+  }
+}
+
+function drawLines() {
+  const svg = document.getElementById('svg-lines');
+  const treeContainer = document.querySelector('.tree-container');
+  const tree = document.getElementById('tree-root');
+  const w = tree.scrollWidth;
+  const h = tree.scrollHeight;
+  svg.style.width = w + 'px';
+  svg.style.height = h + 'px';
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.innerHTML = '';
+
+  const containerRect = treeContainer.getBoundingClientRect();
+  document.querySelectorAll('.node').forEach(node => {
+    const nodeGroup = node.closest('.node-group');
+    const container = nodeGroup.querySelector(':scope > .children-container');
+    if (!container || container.classList.contains('collapsed')) return;
+    const childGroups = container.querySelectorAll(':scope > .node-group');
+    if (!childGroups.length) return;
+
+    const pRect = node.getBoundingClientRect();
+    const startX = (pRect.right - containerRect.left) / currentZoom;
+    const startY = (pRect.top + pRect.height / 2 - containerRect.top) / currentZoom;
+
+    childGroups.forEach(cg => {
+      const cNode = cg.querySelector(':scope > .node');
+      if (!cNode) return;
+      const cRect = cNode.getBoundingClientRect();
+      const endX = (cRect.left - containerRect.left) / currentZoom;
+      const endY = (cRect.top + cRect.height / 2 - containerRect.top) / currentZoom;
+      const midX = (startX + endX) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`);
+      path.setAttribute('class', 'curve-line');
+      svg.appendChild(path);
+    });
+  });
+}
+
+// ===== ZOOM =====
+let currentZoom = 1;
+const zoomStep = 0.1;
+const minZoom = 0.3;
+const maxZoom = 2.5;
+const treeContainer = document.querySelector('.tree-container');
+const zoomLevelDisplay = document.getElementById('zoom-level');
+
+function applyZoom(newZoom) {
+  currentZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+  treeContainer.style.transform = `scale(${currentZoom})`;
+  zoomLevelDisplay.textContent = Math.round(currentZoom * 100) + '%';
+  setTimeout(drawLines, 210);
+}
+document.getElementById('zoom-in').addEventListener('click', () => applyZoom(currentZoom + zoomStep));
+document.getElementById('zoom-out').addEventListener('click', () => applyZoom(currentZoom - zoomStep));
+document.getElementById('zoom-reset').addEventListener('click', () => applyZoom(1));
+treeContainer.addEventListener('wheel', (e) => {
+  if (e.ctrlKey || e.metaKey) { e.preventDefault(); applyZoom(currentZoom + (e.deltaY > 0 ? -zoomStep : zoomStep)); }
+}, { passive: false });
+
+// ===== MODAL LOGIC =====
+function parseRulerMarkdown(text) {
+  const match = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+  if (!match) return { meta: {}, body: text };
+  
+  const yaml = match[1];
+  const body = match[2];
+  const meta = {};
+  
+  yaml.split('\n').forEach(line => {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim();
+      let value = line.slice(colonIndex + 1).trim();
+      // Убираем кавычки
+      value = value.replace(/^["']|["']$/g, '');
+      // Убираем квадратные скобки для массивов (упрощенно)
+      value = value.replace(/^\[|\]$/g, '');
+      meta[key] = value;
+    }
+  });
+  
+  return { meta, body };
+}
+
+function openModal(folder, displayName) {
+  const modal = document.getElementById('ruler-modal');
+  const img = document.getElementById('modal-img');
+  const title = document.getElementById('modal-title');
+  const metaDiv = document.getElementById('modal-meta');
+  const text = document.getElementById('modal-text');
+
+  modal.classList.add('active');
+  
+  // Загрузка фото
+  img.src = `Rulers/${folder}/1.jpg`;
+  img.onerror = () => { 
+    img.style.display = 'none'; 
+    img.nextElementSibling.style.display = 'flex'; 
+  };
+  img.onload = () => { 
+    img.style.display = 'block'; 
+    img.nextElementSibling.style.display = 'none'; 
+  };
+  
+  title.textContent = displayName;
+  metaDiv.innerHTML = '<span>⏳ Загрузка профиля...</span>';
+  text.innerHTML = '<p>Чтение данных...</p>';
+
+  fetch(`Rulers/${folder}/profile.md`)
+    .then(response => {
+      if (!response.ok) throw new Error('Файл не найден');
+      return response.text();
+    })
+    .then(mdText => {
+      const { meta, body } = parseRulerMarkdown(mdText);
+      
+      // Обновляем заголовок
+      title.textContent = meta.name || displayName;
+      
+      // Формируем метаданные
+      const metaItems = [];
+      if (meta.reign) metaItems.push(`<span>📅 ${meta.reign}</span>`);
+      if (meta.nickname) metaItems.push(`<span>👑 ${meta.nickname}</span>`);
+      if (meta.number) metaItems.push(`<span>№${meta.number}</span>`);
+      if (meta.father) metaItems.push(`<span>👤 Отец: ${meta.father}</span>`);
+      if (meta.successor) metaItems.push(`<span>🔄 Преемник: ${meta.successor}</span>`);
+      
+      metaDiv.innerHTML = metaItems.length ? metaItems.join('') : '<span>⚠️ Нет данных</span>';
+      
+      // Рендерим markdown текст
+      text.innerHTML = marked.parse(body || '<em>Описание пока не добавлено</em>');
+    })
+    .catch(error => {
+      console.error('Ошибка загрузки:', error);
+      metaDiv.innerHTML = '<span>⚠️ Файл профиля не найден</span>';
+      text.innerHTML = `<p>Добавьте файл <code>profile.md</code> в папку <code>Rulers/${folder}/</code></p>`;
+    });
+}
+
+function closeModal() { document.getElementById('ruler-modal').classList.remove('active'); }
+document.querySelector('.modal-close').addEventListener('click', closeModal);
+document.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+// INIT
+const treeRoot = document.getElementById('tree-root');
+treeRoot.appendChild(createNodeElement(treeData));
+setTimeout(drawLines, 150);
+window.addEventListener('resize', () => requestAnimationFrame(drawLines));
+window.addEventListener('scroll', () => requestAnimationFrame(drawLines));
+</script>
+
+</body>
+</html>
